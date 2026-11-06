@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cyber-Network Racing | Edukasi Jaringan Komputer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #050510; font-family: 'Inter', sans-serif; touch-action: none; }
+        canvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        .interactive { pointer-events: auto; }
+        
+        /* Custom scrollbar for settings */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 255, 255, 0.5); border-radius: 4px; }
+        
+        /* Cyberpunk styling */
+        .cyber-panel {
+            background: rgba(10, 15, 30, 0.85);
+            border: 1px solid #0ff;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3), inset 0 0 20px rgba(0, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        .cyber-btn {
+            background: linear-gradient(45deg, #004466, #0088cc);
+            border: 1px solid #0ff;
+            text-shadow: 0 0 5px #fff;
+            transition: all 0.2s ease;
+        }
+        .cyber-btn:hover:not(:disabled) {
+            background: linear-gradient(45deg, #006699, #00bbff);
+            box-shadow: 0 0 15px #0ff;
+            transform: scale(1.05);
+        }
+        .cyber-btn:active:not(:disabled) { transform: scale(0.95); }
+        .cyber-btn:disabled { opacity: 0.5; filter: grayscale(1); cursor: not-allowed; }
+        
+        .title-glow {
+            text-shadow: 0 0 10px #0ff, 0 0 20px #0ff, 0 0 40px #00aaff;
+        }
+
+        /* Mobile controls */
+        .control-btn {
+            background: rgba(0, 255, 255, 0.2);
+            border: 2px solid rgba(0, 255, 255, 0.5);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 24px;
+            user-select: none;
+            backdrop-filter: blur(5px);
+        }
+        .control-btn:active, .control-btn.active-simulated {
+            background: rgba(0, 255, 255, 0.6);
+            box-shadow: 0 0 15px #0ff;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 3D Canvas will be injected here -->
+
+    <!-- UI LAYER -->
+    <div id="ui-layer" class="ui-layer">
+        
+        <!-- MAIN MENU -->
+        <div id="menu-screen" class="interactive absolute inset-0 flex flex-col items-center justify-center p-4">
+            <div class="cyber-panel p-8 rounded-xl max-w-lg w-full text-white text-center">
+                <h1 class="text-4xl font-black mb-2 title-glow text-cyan-300">CYBER-NETWORK<br>RACING</h1>
+                <p class="text-sm text-cyan-100 mb-6">Misi Edukasi: Jaringan Komputer & Internet</p>
+                
+                <div class="space-y-4 text-left">
+                    <div>
+                        <label class="block text-xs text-cyan-300 mb-1">Nama Pemain (Siswa)</label>
+                        <input type="text" id="player-name" class="w-full bg-black/50 border border-cyan-500 rounded p-2 text-white focus:outline-none focus:border-cyan-300 focus:ring-1 focus:ring-cyan-300" placeholder="Masukkan nama kamu...">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-cyan-300 mb-1">Kelas</label>
+                        <input type="text" id="player-class" class="w-full bg-black/50 border border-cyan-500 rounded p-2 text-white focus:outline-none focus:border-cyan-300 focus:ring-1 focus:ring-cyan-300" placeholder="Contoh: 7A">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-cyan-300 mb-1">Pilih Sirkuit Materi</label>
+                        <select id="track-select" class="w-full bg-black/50 border border-cyan-500 rounded p-2 text-white focus:outline-none focus:border-cyan-300">
+                            <option value="0">1. LAN & Dasar Jaringan</option>
+                            <option value="1">2. Wi-Fi & Hotspot</option>
+                            <option value="2">3. Tethering & Internet Global</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-8 flex flex-col gap-3">
+                    <button id="btn-start" class="cyber-btn w-full py-3 rounded-lg font-bold text-lg">MULAI BALAPAN</button>
+                    <div class="flex gap-2">
+                        <button id="btn-settings" class="cyber-btn flex-1 py-2 rounded-lg text-sm flex items-center justify-center gap-2">
+                            <span>⚙️ Pengaturan Guru</span>
+                        </button>
+                        <button id="btn-download" class="cyber-btn flex-1 py-2 rounded-lg text-sm flex items-center justify-center gap-2">
+                            <span>💾 Unduh Game HTML</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SETTINGS MODAL -->
+        <div id="settings-screen" class="interactive absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-4 hidden">
+            <div class="cyber-panel p-6 rounded-xl max-w-lg w-full text-white">
+                <h2 class="text-2xl font-bold text-cyan-300 mb-4 flex justify-between items-center">
+                    <span>Pengaturan Integrasi Nilai</span>
+                    <button id="btn-close-settings" class="text-red-400 hover:text-red-300 text-3xl leading-none">&times;</button>
+                </h2>
+                <p class="text-xs text-gray-300 mb-4">Masukkan URL Web App dari Google Apps Script untuk merekam nilai otomatis. Kosongkan jika tidak ingin menyimpan nilai.</p>
+                
+                <label class="block text-xs text-cyan-300 mb-1">URL Google Apps Script (doGet/doPost)</label>
+                <input type="text" id="gas-url" class="w-full bg-black/50 border border-cyan-500 rounded p-2 text-white text-sm mb-4" placeholder="https://script.google.com/macros/s/AKfyc.../exec">
+                
+                <div class="bg-blue-900/30 border border-blue-500/50 p-3 rounded-lg text-xs mb-4">
+                    <p class="font-bold text-blue-300 mb-1">Panduan GAS Script:</p>
+                    <p class="text-gray-300">Script akan menerima parameter GET: <br><code>?action=save&nama=[nama]&kelas=[kelas]&sirkuit=[sirkuit]&skor=[skor]&benar=[benar]&total=[total]&predikat=[predikat]</code></p>
+                </div>
+                
+                <button id="btn-save-settings" class="cyber-btn w-full py-2 rounded-lg font-bold">Simpan Pengaturan</button>
+            </div>
+        </div>
+
+        <!-- HUD (Heads Up Display) -->
+        <div id="hud-screen" class="hidden absolute top-0 left-0 w-full p-4 flex justify-between items-start pointer-events-none">
+            <div class="flex flex-col gap-2">
+                <div class="cyber-panel px-4 py-2 rounded-lg flex items-center gap-3">
+                    <span class="text-cyan-300 text-sm font-bold uppercase tracking-wider">Sinyal</span>
+                    <div class="w-32 h-3 bg-gray-800 rounded-full overflow-hidden border border-cyan-900">
+                        <div id="bar-health" class="h-full bg-green-500 w-full transition-all duration-300"></div>
+                    </div>
+                </div>
+                <div class="cyber-panel px-4 py-2 rounded-lg">
+                    <span class="text-cyan-300 text-sm font-bold block">BOOST (Spasi)</span>
+                    <div class="w-32 h-2 mt-1 bg-gray-800 rounded-full overflow-hidden border border-cyan-900">
+                        <div id="bar-boost" class="h-full bg-yellow-400 w-0 transition-all duration-100"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="cyber-panel px-6 py-3 rounded-xl text-center">
+                <span class="text-cyan-300 text-xs font-bold uppercase block mb-1">Skor Data</span>
+                <span id="hud-score" class="text-white text-2xl font-black font-mono">0</span>
+            </div>
+            
+            <div class="cyber-panel px-4 py-2 rounded-lg text-right">
+                <span class="text-cyan-300 text-xs font-bold uppercase block">Progres</span>
+                <span id="hud-progress" class="text-white text-lg font-bold font-mono">0%</span>
+                <div class="text-xs text-gray-400 mt-1"><span id="hud-speed">50</span> Mbps</div>
+            </div>
+        </div>
+
+        <!-- MOBILE CONTROLS -->
+        <div id="mobile-controls" class="interactive hidden absolute bottom-4 left-0 w-full px-6 flex justify-between items-end">
+            <div class="flex gap-2">
+                <div class="control-btn" id="btn-left">←</div>
+                <div class="control-btn" id="btn-right">→</div>
+            </div>
+            <div class="flex flex-col gap-2 items-center">
+                <div class="control-btn bg-yellow-500/20 border-yellow-500/50 text-yellow-300" id="btn-boost">🚀</div>
+                <div class="flex gap-2">
+                    <div class="control-btn bg-red-500/20 border-red-500/50" id="btn-brake">⏬</div>
+                    <div class="control-btn bg-green-500/20 border-green-500/50" id="btn-gas">⏫</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- INSTRUCTION OVERLAY -->
+        <div id="instruction-screen" class="hidden absolute top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+             <div class="bg-black/60 px-6 py-3 rounded-full border border-cyan-500 text-cyan-100 animate-pulse">
+                Gunakan W/A/S/D atau Panah untuk bergerak. Kumpulkan Biru, Hindari Merah!
+             </div>
+        </div>
+
+        <!-- QUIZ MODAL -->
+        <div id="quiz-screen" class="interactive absolute inset-0 bg-black/90 flex flex-col items-center justify-center p-4 hidden">
+            <div class="cyber-panel p-6 rounded-xl max-w-2xl w-full text-white border-yellow-500/50 shadow-[0_0_30px_rgba(255,200,0,0.2)]">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-yellow-400">DATA CHECKPOINT!</h2>
+                    <span class="bg-yellow-500/20 text-yellow-300 px-3 py-1 rounded-full text-xs font-bold border border-yellow-500/50">Waktu Jeda</span>
+                </div>
+                
+                <p id="quiz-question" class="text-lg mb-6 leading-relaxed">Pertanyaan akan muncul di sini?</p>
+                
+                <div id="quiz-options" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                    <!-- Options injected here -->
+                </div>
+                
+                <div id="quiz-feedback" class="hidden rounded-lg p-4 mb-4 border text-sm">
+                    <strong id="feedback-title" class="block mb-1 text-base">Benar/Salah</strong>
+                    <p id="feedback-text">Penjelasan...</p>
+                </div>
+                
+                <button id="btn-quiz-continue" class="cyber-btn w-full py-3 rounded-lg font-bold hidden">LANJUTKAN BALAPAN</button>
+            </div>
+        </div>
+
+        <!-- GAME OVER MODAL -->
+        <div id="gameover-screen" class="interactive absolute inset-0 bg-black/95 flex flex-col items-center justify-center p-4 hidden">
+            <div class="cyber-panel p-8 rounded-xl max-w-lg w-full text-white text-center border-cyan-500">
+                <h1 id="go-title" class="text-4xl font-black mb-2 title-glow text-cyan-300">MISI SELESAI</h1>
+                <p id="go-subtitle" class="text-cyan-100 mb-6">Sirkuit berhasil diselesaikan!</p>
+                
+                <div class="bg-black/50 rounded-lg p-4 mb-6 border border-cyan-900 text-left space-y-2">
+                    <div class="flex justify-between border-b border-cyan-900/50 pb-2">
+                        <span class="text-gray-400">Nama Siswa:</span>
+                        <span id="go-name" class="font-bold text-cyan-300">-</span>
+                    </div>
+                    <div class="flex justify-between border-b border-cyan-900/50 pb-2">
+                        <span class="text-gray-400">Kelas:</span>
+                        <span id="go-class" class="font-bold text-cyan-300">-</span>
+                    </div>
+                    <div class="flex justify-between border-b border-cyan-900/50 pb-2">
+                        <span class="text-gray-400">Sirkuit:</span>
+                        <span id="go-track" class="font-bold text-cyan-300">-</span>
+                    </div>
+                    <div class="flex justify-between border-b border-cyan-900/50 pb-2">
+                        <span class="text-gray-400">Skor Berkendara:</span>
+                        <span id="go-score" class="font-bold text-yellow-400">0</span>
+                    </div>
+                    <div class="flex justify-between border-b border-cyan-900/50 pb-2">
+                        <span class="text-gray-400">Kuis Benar:</span>
+                        <span id="go-quiz" class="font-bold text-green-400">0 / 5</span>
+                    </div>
+                    <div class="flex justify-between pt-2">
+                        <span class="text-gray-400">Predikat:</span>
+                        <span id="go-grade" class="font-bold text-xl text-cyan-300">A</span>
+                    </div>
+                </div>
+
+                <div id="save-status" class="mb-6 text-sm text-gray-400 h-6 flex items-center justify-center">
+                    <!-- Status message for Google Sheets save -->
+                </div>
+
+                <div class="flex gap-3">
+                    <button id="btn-play-again" class="cyber-btn flex-1 py-3 rounded-lg font-bold text-sm">MAIN LAGI</button>
+                    <button id="btn-main-menu" class="cyber-btn flex-1 py-3 rounded-lg font-bold text-sm bg-gradient-to-r from-purple-800 to-purple-600 border-purple-400">MENU UTAMA</button>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+<script>
+/**
+ * CYBER-NETWORK RACING
+ * Game Edukasi 3D HTML5
+ * Author: AI Assistant
+ */
+
+// ==========================================
+// 1. DATA & MATERI EDUKASI (QUIZ BANKS)
+// ==========================================
+const QUIZ_DATA = [
+    {
+        trackId: 0,
+        title: "LAN & Dasar Jaringan",
+        questions: [
+            { q: "Jaringan komputer yang mencakup area kecil seperti ruang kelas atau gedung sekolah disebut?", options: ["WAN (Wide Area Network)", "LAN (Local Area Network)", "MAN (Metropolitan Area Network)", "PAN (Personal Area Network)"], ans: 1, explanation: "LAN (Local Area Network) digunakan untuk menghubungkan komputer dalam area terbatas seperti satu ruangan atau satu gedung." },
+            { q: "Perangkat utama yang digunakan sebagai pusat sambungan kabel untuk menghubungkan beberapa komputer dalam jaringan LAN adalah?", options: ["Switch / Hub", "Monitor", "Printer", "Mouse"], ans: 0, explanation: "Switch atau Hub berfungsi membagi dan menyalurkan data ke komputer-komputer yang terhubung di jaringan lokal (LAN)." },
+            { q: "Jenis kabel fisik yang paling umum digunakan untuk membangun jaringan LAN lokal di sekolah adalah?", options: ["Kabel UTP / Kabel LAN", "Kabel Listrik", "Kabel VGA", "Kabel HDMI"], ans: 0, explanation: "Kabel UTP (Unshielded Twisted Pair) dengan ujung konektor RJ-45 adalah standar utama kabel untuk jaringan LAN." },
+            { q: "Setiap perangkat (komputer/HP) yang terhubung dalam jaringan harus memiliki alamat numerik unik yang disebut?", options: ["Alamat Email", "MAC Address", "IP Address (Internet Protocol)", "Home Address"], ans: 2, explanation: "IP Address berfungsi sebagai alamat pengenal unik setiap perangkat agar data bisa dikirim ke tujuan yang tepat dalam jaringan." },
+            { q: "Apa keuntungan atau tujuan utama dari menghubungkan komputer ke dalam suatu jaringan?", options: ["Membuat komputer tidak cepat panas", "Berbagi data, file, dan sumber daya (seperti printer)", "Menghabiskan daya listrik sekolah", "Mempercepat putaran kipas komputer"], ans: 1, explanation: "Tujuan utama jaringan komputer adalah 'Resource Sharing' (berbagi sumber daya), sehingga kita bisa bertukar file atau memakai printer yang sama." }
+        ]
+    },
+    {
+        trackId: 1,
+        title: "Wi-Fi & Hotspot",
+        questions: [
+            { q: "Teknologi jaringan nirkabel (tanpa kabel) yang sangat sering digunakan di rumah, kafe, atau sekolah adalah?", options: ["Bluetooth", "Infrared", "Wi-Fi", "NFC"], ans: 2, explanation: "Wi-Fi adalah teknologi jaringan nirkabel populer yang memanfaatkan gelombang radio untuk menyediakan akses internet berkecepatan tinggi." },
+            { q: "Perangkat keras yang memancarkan sinyal Wi-Fi agar HP atau laptop kita bisa terhubung ke internet disebut?", options: ["Modem Dial-up", "Access Point / Wireless Router", "Switch", "Flashdisk"], ans: 1, explanation: "Access Point atau Wireless Router bertugas memancarkan sinyal radio (Wi-Fi) dan menghubungkannya dengan sumber internet." },
+            { q: "Untuk menjaga keamanan, apa yang biasanya diperlukan agar sebuah perangkat dapat terhubung ke jaringan Wi-Fi privat?", options: ["Kata sandi / Password", "Alamat rumah", "KTP (Kartu Tanda Penduduk)", "Nomor telepon"], ans: 0, explanation: "Keamanan jaringan Wi-Fi biasanya diproteksi dengan password (misal WPA2) agar tidak sembarang orang bisa menggunakan bandwidth kita." },
+            { q: "Sinyal Wi-Fi mengirimkan data internet melalui udara dengan menggunakan media apa?", options: ["Kabel fiber optik", "Cahaya inframerah", "Gelombang suara", "Gelombang radio"], ans: 3, explanation: "Wi-Fi menggunakan gelombang radio pada frekuensi tertentu (biasanya 2.4 GHz atau 5 GHz) untuk mentransmisikan data." },
+            { q: "Jika indikator sinyal Wi-Fi di HP kamu hanya menunjukkan satu bar (lemah), apa dampak yang paling terasa?", options: ["Baterai menjadi lebih awet", "Layar menjadi lebih terang", "Koneksi internet menjadi lambat atau putus-putus", "HP menjadi kebal virus"], ans: 2, explanation: "Sinyal Wi-Fi yang lemah berarti transmisi data banyak yang hilang (packet loss), sehingga koneksi terasa sangat lambat dan tidak stabil." }
+        ]
+    },
+    {
+        trackId: 2,
+        title: "Tethering & Internet Global",
+        questions: [
+            { q: "Istilah untuk berbagi koneksi internet dari Smartphone (HP) pribadi ke laptop atau perangkat lain disebut?", options: ["Tethering / Personal Hotspot", "Browsing web", "Downloading file", "Chatting"], ans: 0, explanation: "Tethering adalah cara mengubah HP kamu menjadi Access Point mini untuk membagikan kuota internet seluler ke perangkat lain." },
+            { q: "Tethering internet dari HP ke laptop dapat dilakukan melalui beberapa cara berikut, KECUALI?", options: ["Kabel USB", "Wi-Fi Hotspot", "Kabel HDMI", "Bluetooth"], ans: 2, explanation: "Kabel HDMI digunakan untuk menyalurkan sinyal video/gambar ke monitor atau proyektor, BUKAN untuk berbagi jaringan internet." },
+            { q: "Kumpulan miliaran komputer dan jaringan lokal di seluruh dunia yang saling terhubung satu sama lain membentuk jaringan raksasa disebut?", options: ["Intranet", "Internet", "LAN", "Localhost"], ans: 1, explanation: "Internet (Interconnected Network) adalah jaringan global raksasa yang menghubungkan seluruh jaringan komputer di penjuru dunia." },
+            { q: "Untuk membuka dan membaca halaman web (website) di internet, kita menggunakan aplikasi perangkat lunak yang disebut?", options: ["Antivirus", "Word Processor", "Media Player", "Web Browser (seperti Chrome/Edge)"], ans: 3, explanation: "Web Browser berfungsi mengambil informasi dari web server dan menampilkannya menjadi halaman web yang bisa kita baca." },
+            { q: "Ketika kamu menonton video di YouTube atau membuka sebuah website, data tersebut sebenarnya dikirim dari komputer pusat berkecepatan tinggi yang disebut?", options: ["Server", "Client", "Router", "Switch"], ans: 0, explanation: "Server adalah komputer dengan spesifikasi tinggi yang menyala 24 jam untuk menyimpan data website/aplikasi dan melayani permintaan dari pengguna (client)." }
+        ]
+    }
+];
+
+// ==========================================
+// 2. GAME STATE & VARIABLES
+// ==========================================
+const GAME = {
+    state: 'MENU', // MENU, PLAYING, PAUSED, QUIZ, GAMEOVER
+    playerName: '',
+    playerClass: '',
+    trackIndex: 0,
+    
+    score: 0,
+    health: 100,
+    progress: 0, // 0 to 100
+    distance: 0,
+    maxDistance: 10000,
+    boost: 0, // 0 to 100
+    
+    speed: 0,
+    targetSpeed: 50,
+    baseSpeed: 50,
+    boostSpeed: 150,
+    maxSpeed: 100,
+    
+    quizStats: { correct: 0, total: 0 },
+    currentQuestions: [],
+    questionIndex: 0,
+    nextGateDistance: 400, // Diperpendek dari 800 menjadi 400
+
+    keys: { left: false, right: false, up: false, down: false, boost: false },
+    laneWidth: 3, // Distance between lanes
+    
+    lastTime: 0,
+    gasUrl: localStorage.getItem('cyberRaceGasUrl') || ''
+};
+
+// UI Elements
+const UI = {
+    menu: document.getElementById('menu-screen'),
+    settings: document.getElementById('settings-screen'),
+    hud: document.getElementById('hud-screen'),
+    mobileControls: document.getElementById('mobile-controls'),
+    quiz: document.getElementById('quiz-screen'),
+    gameover: document.getElementById('gameover-screen'),
+    instruction: document.getElementById('instruction-screen')
+};
+
+// ==========================================
+// 3. THREE.JS SETUP & SCENE
+// ==========================================
+let scene, camera, renderer;
+let carGroup, roadMarkings;
+let objects = []; // obstacles, collectibles, gates
+let particles = [];
+let roadLanes = [];
+
+function initThreeJS() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB); // Sky Blue (Langit Siang)
+    scene.fog = new THREE.FogExp2(0x87CEEB, 0.015);
+
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+    
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    document.body.insertBefore(renderer.domElement, document.getElementById('ui-layer'));
+
+    // Lighting (Sinar matahari)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(10, 20, 10);
+    scene.add(dirLight);
+
+    buildWorld();
+    buildCar();
+    
+    // Position Camera behind car
+    camera.position.set(0, 4, 8);
+    camera.lookAt(0, 0, -10);
+
+    // Camera Drag Controls (Simple implementation)
+    let isDragging = false;
+    let previousMousePosition = { x: 0, y: 0 };
+    let cameraAngle = { x: 0, y: 0 };
+
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+        if(GAME.state !== 'PLAYING') return;
+        isDragging = true;
+        previousMousePosition = { x: e.offsetX, y: e.offsetY };
+    });
+    
+    renderer.domElement.addEventListener('pointermove', (e) => {
+        if(GAME.state !== 'PLAYING' || !isDragging) return;
+        let deltaMove = {
+            x: e.offsetX - previousMousePosition.x,
+            y: e.offsetY - previousMousePosition.y
+        };
+        cameraAngle.x -= deltaMove.x * 0.005;
+        cameraAngle.y -= deltaMove.y * 0.005;
+        cameraAngle.y = Math.max(-0.5, Math.min(0.8, cameraAngle.y)); // clamp vertical
+        
+        previousMousePosition = { x: e.offsetX, y: e.offsetY };
+    });
+    
+    window.addEventListener('pointerup', () => { isDragging = false; });
+    
+    // Auto reset camera gently
+    setInterval(() => {
+        if(!isDragging && GAME.state === 'PLAYING') {
+            cameraAngle.x += (0 - cameraAngle.x) * 0.05;
+            cameraAngle.y += (0 - cameraAngle.y) * 0.05;
+        }
+        
+        // Apply camera angle
+        if(carGroup) {
+            const radius = 8;
+            camera.position.x = carGroup.position.x + radius * Math.sin(cameraAngle.x);
+            camera.position.z = carGroup.position.z + radius * Math.cos(cameraAngle.x);
+            camera.position.y = 4 + radius * Math.sin(cameraAngle.y);
+            camera.lookAt(carGroup.position.x, 1, carGroup.position.z - 5);
+        }
+    }, 1000/60);
+}
+
+function buildWorld() {
+    // Rumput / Tanah
+    const groundGeo = new THREE.PlaneGeometry(200, 200);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x3d5c2a, roughness: 1 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.1;
+    scene.add(ground);
+
+    // Jalan Aspal
+    const roadGeo = new THREE.PlaneGeometry(16, 200);
+    const roadMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+    const road = new THREE.Mesh(roadGeo, roadMat);
+    road.rotation.x = -Math.PI / 2;
+    road.position.y = 0;
+    scene.add(road);
+
+    // Garis Tepi Jalan (Kuning)
+    const edgeGeo = new THREE.PlaneGeometry(0.3, 200);
+    const edgeMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+    
+    const leftEdge = new THREE.Mesh(edgeGeo, edgeMat);
+    leftEdge.rotation.x = -Math.PI / 2; 
+    leftEdge.position.set(-7.5, 0.01, 0);
+    scene.add(leftEdge);
+    
+    const rightEdge = new THREE.Mesh(edgeGeo, edgeMat);
+    rightEdge.rotation.x = -Math.PI / 2; 
+    rightEdge.position.set(7.5, 0.01, 0);
+    scene.add(rightEdge);
+
+    // Marka Jalan Putih (Putus-putus)
+    roadMarkings = new THREE.Group();
+    const lineGeo = new THREE.PlaneGeometry(0.2, 2);
+    const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    
+    for(let z = -100; z < 50; z += 4) {
+        for(let i = -1; i <= 1; i++) { // Pembatas jalur di -3, 0, 3
+            const line = new THREE.Mesh(lineGeo, lineMat);
+            line.rotation.x = -Math.PI / 2;
+            line.position.set(i * 3, 0.01, z);
+            roadMarkings.add(line);
+        }
+    }
+    scene.add(roadMarkings);
+}
+
+function buildCar() {
+    carGroup = new THREE.Group();
+    scene.add(carGroup);
+
+    // Material
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xdd0000, roughness: 0.2, metalness: 0.4 }); // Cat Merah Glossy
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.8 }); // Kaca Gelap
+    
+    // Sasis / Bodi Bawah
+    const chassisGeo = new THREE.BoxGeometry(1.8, 0.5, 4);
+    const chassis = new THREE.Mesh(chassisGeo, bodyMat);
+    chassis.position.y = 0.5;
+    carGroup.add(chassis);
+
+    // Kabin (Atas)
+    const cabinGeo = new THREE.BoxGeometry(1.4, 0.45, 2);
+    const cabin = new THREE.Mesh(cabinGeo, glassMat);
+    cabin.position.set(0, 0.95, -0.2);
+    carGroup.add(cabin);
+
+    // Atap
+    const roofGeo = new THREE.BoxGeometry(1.42, 0.05, 1.8);
+    const roof = new THREE.Mesh(roofGeo, bodyMat);
+    roof.position.set(0, 1.18, -0.2);
+    carGroup.add(roof);
+
+    // Lampu Depan (Putih)
+    const hlGeo = new THREE.BoxGeometry(0.4, 0.15, 0.1);
+    const hlMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const hlLeft = new THREE.Mesh(hlGeo, hlMat); hlLeft.position.set(-0.6, 0.6, -2.01);
+    const hlRight = new THREE.Mesh(hlGeo, hlMat); hlRight.position.set(0.6, 0.6, -2.01);
+    carGroup.add(hlLeft); carGroup.add(hlRight);
+
+    // Lampu Belakang (Merah)
+    const tlGeo = new THREE.BoxGeometry(0.5, 0.15, 0.1);
+    const tlMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const tlLeft = new THREE.Mesh(tlGeo, tlMat); tlLeft.position.set(-0.6, 0.6, 2.01);
+    const tlRight = new THREE.Mesh(tlGeo, tlMat); tlRight.position.set(0.6, 0.6, 2.01);
+    carGroup.add(tlLeft); carGroup.add(tlRight);
+
+    // Spoiler
+    const spoilerGeo = new THREE.BoxGeometry(1.6, 0.05, 0.4);
+    const spoiler = new THREE.Mesh(spoilerGeo, bodyMat);
+    spoiler.position.set(0, 0.9, 1.8);
+    carGroup.add(spoiler);
+    
+    // Tiang Spoiler
+    const supGeo = new THREE.BoxGeometry(0.1, 0.2, 0.2);
+    const supLeft = new THREE.Mesh(supGeo, bodyMat); supLeft.position.set(-0.5, 0.8, 1.8);
+    const supRight = new THREE.Mesh(supGeo, bodyMat); supRight.position.set(0.5, 0.8, 1.8);
+    carGroup.add(supLeft); carGroup.add(supRight);
+
+    // Roda & Velg
+    const wheelGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.3, 16);
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+    const rimGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.32, 16);
+    const rimMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8, roughness: 0.2 });
+
+    const positions = [
+        [-0.9, 0.35, 1.2], [0.9, 0.35, 1.2], // Belakang
+        [-0.9, 0.35, -1.2], [0.9, 0.35, -1.2] // Depan
+    ];
+    
+    positions.forEach(pos => {
+        const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(...pos);
+        carGroup.add(wheel);
+
+        const rim = new THREE.Mesh(rimGeo, rimMat);
+        rim.rotation.z = Math.PI / 2;
+        rim.position.set(...pos);
+        carGroup.add(rim);
+    });
+}
+
+// ==========================================
+// 4. GAME OBJECTS & SPAWNING
+// ==========================================
+function getLaneX() {
+    const lanes = [-4.5, -1.5, 1.5, 4.5];
+    return lanes[Math.floor(Math.random() * lanes.length)];
+}
+
+function spawnObstacle(z) {
+    const geo = new THREE.ConeGeometry(0.6, 1.5, 4);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xff0033, wireframe: true });
+    const obs = new THREE.Mesh(geo, mat);
+    obs.position.set(getLaneX(), 0.75, z);
+    obs.userData = { type: 'obstacle', hit: false };
+    scene.add(obs);
+    objects.push(obs);
+}
+
+function spawnCollectible(z) {
+    const geo = new THREE.OctahedronGeometry(0.5);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x00ffaa, wireframe: true });
+    const item = new THREE.Mesh(geo, mat);
+    item.position.set(getLaneX(), 1, z);
+    item.userData = { type: 'collectible', hit: false };
+    scene.add(item);
+    objects.push(item);
+}
+
+function spawnGate(z) {
+    const group = new THREE.Group();
+    
+    // Pillars
+    const pGeo = new THREE.CylinderGeometry(0.2, 0.2, 4);
+    const pMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+    const p1 = new THREE.Mesh(pGeo, pMat); p1.position.set(-6, 2, 0);
+    const p2 = new THREE.Mesh(pGeo, pMat); p2.position.set(6, 2, 0);
+    
+    // Arch
+    const aGeo = new THREE.BoxGeometry(12, 0.4, 0.4);
+    const aMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+    const arch = new THREE.Mesh(aGeo, aMat); arch.position.set(0, 4, 0);
+    
+    // Text Plane (simple representation)
+    const tGeo = new THREE.PlaneGeometry(4, 1);
+    const tMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent:true, opacity:0.8 });
+    const text = new THREE.Mesh(tGeo, tMat); text.position.set(0, 3, 0.2);
+
+    group.add(p1); group.add(p2); group.add(arch); group.add(text);
+    group.position.set(0, 0, z);
+    group.userData = { type: 'gate', hit: false };
+    scene.add(group);
+    objects.push(group);
+}
+
+function createExplosion(x, y, z, color) {
+    const geo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+    const mat = new THREE.MeshBasicMaterial({ color: color });
+    for(let i=0; i<10; i++) {
+        const p = new THREE.Mesh(geo, mat);
+        p.position.set(x, y, z);
+        p.userData = {
+            vx: (Math.random() - 0.5) * 0.5,
+            vy: Math.random() * 0.5,
+            vz: (Math.random() - 0.5) * 0.5,
+            life: 1.0
+        };
+        scene.add(p);
+        particles.push(p);
+    }
+}
+
+// ==========================================
+// 5. GAME LOGIC & LOOP
+// ==========================================
+function startGame() {
+    const nameInput = document.getElementById('player-name').value.trim();
+    const classInput = document.getElementById('player-class').value.trim();
+    
+    if(!nameInput || !classInput) {
+        alert("Silakan masukkan Nama dan Kelas!");
+        return;
+    }
+
+    GAME.playerName = nameInput;
+    GAME.playerClass = classInput;
+    GAME.trackIndex = parseInt(document.getElementById('track-select').value);
+    
+    // Setup Quiz
+    const bank = QUIZ_DATA[GAME.trackIndex].questions;
+    // Shuffle copy
+    GAME.currentQuestions = [...bank].sort(() => Math.random() - 0.5);
+    GAME.questionIndex = 0;
+    GAME.quizStats = { correct: 0, total: GAME.currentQuestions.length };
+
+    // Reset State
+    GAME.score = 0;
+    GAME.health = 100;
+    GAME.progress = 0;
+    GAME.distance = 0;
+    GAME.boost = 0;
+    GAME.speed = 0;
+    GAME.nextGateDistance = 400; // Diperpendek dari 800
+    carGroup.position.set(0, 0, 0);
+    
+    // Clear old objects
+    objects.forEach(obj => scene.remove(obj));
+    objects = [];
+    particles.forEach(p => scene.remove(p));
+    particles = [];
+
+    // Pre-spawn some objects (rintangan diperbanyak)
+    for(let z = -100; z >= -1000; z -= 60) { // Jarak antar objek lebih rapat
+        if(Math.random() > 0.8) spawnObstacle(z); // Peluang rintangan diperkecil menjadi 20%
+        else spawnCollectible(z);
+    }
+
+    // UI Updates
+    UI.menu.classList.add('hidden');
+    UI.gameover.classList.add('hidden');
+    UI.hud.classList.remove('hidden');
+    
+    // Show mobile controls if touch device
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        UI.mobileControls.classList.remove('hidden');
+    }
+
+    UI.instruction.classList.remove('hidden');
+    setTimeout(() => UI.instruction.classList.add('hidden'), 4000);
+
+    GAME.state = 'PLAYING';
+    GAME.lastTime = performance.now();
+    
+    updateHUD();
+    requestAnimationFrame(animate);
+}
+
+function triggerQuiz() {
+    GAME.state = 'QUIZ';
+    GAME.speed = 0; // stop car
+    
+    const qData = GAME.currentQuestions[GAME.questionIndex];
+    if(!qData) {
+        // No more questions, just resume
+        resumeGame();
+        return;
+    }
+
+    document.getElementById('quiz-question').innerText = qData.q;
+    const optsContainer = document.getElementById('quiz-options');
+    optsContainer.innerHTML = '';
+    
+    qData.options.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'cyber-btn p-4 rounded text-left border border-cyan-500 hover:border-cyan-300 transition';
+        btn.innerText = String.fromCharCode(65 + idx) + ". " + opt;
+        btn.onclick = () => handleAnswer(idx, qData.ans, qData.explanation);
+        optsContainer.appendChild(btn);
+    });
+
+    document.getElementById('quiz-feedback').classList.add('hidden');
+    document.getElementById('btn-quiz-continue').classList.add('hidden');
+    UI.quiz.classList.remove('hidden');
+}
+
+function handleAnswer(selectedIdx, correctIdx, explanation) {
+    const isCorrect = (selectedIdx === correctIdx);
+    const fbBox = document.getElementById('quiz-feedback');
+    const fbTitle = document.getElementById('feedback-title');
+    const fbText = document.getElementById('feedback-text');
+    const btnContinue = document.getElementById('btn-quiz-continue');
+    const opts = document.getElementById('quiz-options').children;
+    
+    // Disable all options
+    for(let i=0; i<opts.length; i++) {
+        opts[i].disabled = true;
+        if(i === correctIdx) {
+            opts[i].classList.add('bg-green-600', 'border-green-400');
+            opts[i].classList.remove('cyber-btn');
+        } else if(i === selectedIdx && !isCorrect) {
+            opts[i].classList.add('bg-red-600', 'border-red-400');
+            opts[i].classList.remove('cyber-btn');
+        }
+    }
+
+    fbBox.classList.remove('hidden', 'bg-green-900/50', 'border-green-500', 'bg-red-900/50', 'border-red-500');
+    if(isCorrect) {
+        GAME.quizStats.correct++;
+        GAME.score += 500;
+        GAME.health = Math.min(100, GAME.health + 20); // heal
+        fbBox.classList.add('bg-green-900/50', 'border-green-500', 'text-green-100');
+        fbTitle.innerText = "Jawaban BENAR! (+500 Skor, +Sinyal)";
+        fbTitle.className = "block mb-1 text-lg font-bold text-green-400";
+    } else {
+        GAME.health = Math.max(1, GAME.health - 10);
+        fbBox.classList.add('bg-red-900/50', 'border-red-500', 'text-red-100');
+        fbTitle.innerText = "Jawaban SALAH! (-Sinyal)";
+        fbTitle.className = "block mb-1 text-lg font-bold text-red-400";
+    }
+    fbText.innerText = explanation;
+    
+    GAME.questionIndex++;
+    updateHUD();
+    btnContinue.classList.remove('hidden');
+}
+
+document.getElementById('btn-quiz-continue').addEventListener('click', resumeGame);
+
+function resumeGame() {
+    UI.quiz.classList.add('hidden');
+    
+    // Cek apakah semua pertanyaan (checkpoint) sudah dijawab
+    if (GAME.questionIndex >= GAME.currentQuestions.length) {
+        GAME.progress = 100; // Set progres 100%
+        updateHUD();
+        gameOver();
+        return; // Hentikan permainan dan tampilkan layar akhir
+    }
+
+    GAME.state = 'PLAYING';
+    GAME.lastTime = performance.now();
+    GAME.speed = GAME.baseSpeed; // restart speed gracefully
+}
+
+function gameOver() {
+    GAME.state = 'GAMEOVER';
+    UI.hud.classList.add('hidden');
+    UI.mobileControls.classList.add('hidden');
+    UI.gameover.classList.remove('hidden');
+    
+    // Menang jika semua soal kuis telah selesai dijawab
+    const isWin = GAME.questionIndex >= GAME.currentQuestions.length;
+    const grade = calculateGrade();
+    
+    document.getElementById('go-title').innerText = isWin ? "MISI SELESAI!" : "KONEKSI TERPUTUS";
+    document.getElementById('go-title').className = `text-4xl font-black mb-2 title-glow ${isWin ? 'text-green-400' : 'text-red-500'}`;
+    document.getElementById('go-subtitle').innerText = isWin ? "Kamu telah mencapai server utama!" : "Sinyal kamu habis tertabrak rintangan.";
+    
+    document.getElementById('go-name').innerText = GAME.playerName;
+    document.getElementById('go-class').innerText = GAME.playerClass;
+    document.getElementById('go-track').innerText = QUIZ_DATA[GAME.trackIndex].title;
+    document.getElementById('go-score').innerText = GAME.score;
+    document.getElementById('go-quiz').innerText = `${GAME.quizStats.correct} / ${GAME.quizStats.total}`;
+    document.getElementById('go-grade').innerText = grade;
+
+    saveToGoogleSheets(grade);
+}
+
+function calculateGrade() {
+    const accuracy = GAME.quizStats.total > 0 ? (GAME.quizStats.correct / GAME.quizStats.total) : 0;
+    if(accuracy === 1) return "A (Excellent)";
+    if(accuracy >= 0.8) return "B (Good)";
+    if(accuracy >= 0.6) return "C (Fair)";
+    return "D (Needs Study)";
+}
+
+function updateHUD() {
+    document.getElementById('bar-health').style.width = GAME.health + '%';
+    // Change health color based on value
+    document.getElementById('bar-health').className = `h-full transition-all duration-300 ${GAME.health > 50 ? 'bg-green-500' : GAME.health > 25 ? 'bg-yellow-500' : 'bg-red-500'}`;
+    
+    document.getElementById('bar-boost').style.width = GAME.boost + '%';
+    document.getElementById('hud-score').innerText = GAME.score;
+    document.getElementById('hud-progress').innerText = Math.floor(GAME.progress) + '%';
+    document.getElementById('hud-speed').innerText = Math.floor(GAME.speed);
+}
+
+function animate(currentTime) {
+    if(GAME.state !== 'PLAYING') {
+        if(GAME.state !== 'MENU') renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+        return;
+    }
+
+    const dt = (currentTime - GAME.lastTime) / 1000;
+    GAME.lastTime = currentTime;
+
+    // Movement & Speed logic
+    let currentMax = GAME.keys.boost && GAME.boost > 0 ? GAME.boostSpeed : GAME.maxSpeed;
+    
+    if(GAME.keys.up) GAME.targetSpeed = currentMax;
+    else if(GAME.keys.down) GAME.targetSpeed = 20;
+    else GAME.targetSpeed = GAME.baseSpeed;
+    
+    // Boost consumption
+    if(GAME.keys.boost && GAME.boost > 0) {
+        GAME.boost = Math.max(0, GAME.boost - 30 * dt); // drain boost
+    }
+
+    // Smooth speed interpolation
+    GAME.speed += (GAME.targetSpeed - GAME.speed) * dt * 2;
+    
+    // Distance update
+    const moveDist = GAME.speed * dt;
+    GAME.distance += moveDist;
+    
+    // Progres berdasarkan jarak menuju seluruh checkpoint
+    const targetDistance = GAME.currentQuestions.length * 400;
+    GAME.progress = Math.min(100, (GAME.distance / targetDistance) * 100);
+
+    // Ilusi jalan bergerak menggunakan marka
+    if(roadMarkings) {
+        roadMarkings.position.z = (GAME.distance % 4);
+    }
+
+    // Car Lateral Movement
+    const turnSpeed = 15;
+    if(GAME.keys.left) carGroup.position.x -= turnSpeed * dt;
+    if(GAME.keys.right) carGroup.position.x += turnSpeed * dt;
+    
+    // Bounds check
+    carGroup.position.x = Math.max(-6, Math.min(6, carGroup.position.x));
+    
+    // Car tilt for juice
+    carGroup.rotation.z = (GAME.keys.right ? -0.1 : (GAME.keys.left ? 0.1 : 0));
+    carGroup.rotation.x = (GAME.speed > GAME.baseSpeed + 20) ? -0.05 : 0;
+
+    // Object Management
+    for(let i = objects.length - 1; i >= 0; i--) {
+        const obj = objects[i];
+        
+        // Move object towards camera
+        obj.position.z += moveDist;
+        
+        // Rotate collectibles
+        if(obj.userData.type === 'collectible') {
+            obj.rotation.y += 2 * dt;
+            obj.rotation.x += 1 * dt;
+        }
+
+        // Collision Detection
+        if(!obj.userData.hit && obj.position.z > -1 && obj.position.z < 1) {
+            const distX = Math.abs(obj.position.x - carGroup.position.x);
+            
+            // Gerbang (gate) membentang selebar jalan, jadi radius tabrakannya dibuat sangat besar (10)
+            const hitRadius = (obj.userData.type === 'gate') ? 10 : 1.5;
+            
+            if(distX < hitRadius) { // Hit
+                obj.userData.hit = true;
+                
+                if(obj.userData.type === 'obstacle') {
+                    GAME.health -= 15;
+                    GAME.speed *= 0.5; // slow down
+                    createExplosion(obj.position.x, 1, obj.position.z, 0xff0000);
+                    obj.visible = false;
+                    
+                    if(GAME.health <= 0) {
+                        GAME.health = 0;
+                        gameOver();
+                    }
+                } 
+                else if(obj.userData.type === 'collectible') {
+                    GAME.score += 50;
+                    GAME.boost = Math.min(100, GAME.boost + 20);
+                    createExplosion(obj.position.x, 1, obj.position.z, 0x00ffaa);
+                    obj.visible = false;
+                }
+                else if(obj.userData.type === 'gate') {
+                    // Trigger Quiz
+                    triggerQuiz();
+                }
+            }
+        }
+
+        // Remove objects behind camera
+        if(obj.position.z > 5) {
+            scene.remove(obj);
+            objects.splice(i, 1);
+        }
+    }
+
+    // Spawn new objects ahead
+    const spawnZ = -100;
+    if(Math.random() < 0.04) { // Peluang spawn objek baru per frame diturunkan ke 4%
+        if(Math.random() > 0.8) spawnObstacle(spawnZ); // Peluang rintangan diperkecil menjadi 20%
+        else spawnCollectible(spawnZ);
+    }
+    
+    // Spawn Checkpoint Gate
+    if(GAME.distance >= GAME.nextGateDistance && GAME.questionIndex < GAME.currentQuestions.length) {
+        spawnGate(spawnZ);
+        GAME.nextGateDistance += 400; // Jarak checkpoint selanjutnya diperpendek menjadi 400
+    }
+
+    // Particle logic
+    for(let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.position.x += p.userData.vx;
+        p.position.y += p.userData.vy;
+        p.position.z += p.userData.vz;
+        p.userData.life -= dt * 2;
+        p.scale.setScalar(p.userData.life);
+        
+        if(p.userData.life <= 0) {
+            scene.remove(p);
+            particles.splice(i, 1);
+        }
+    }
+
+    // Score based on distance
+    if(Math.floor(GAME.distance) % 10 === 0) GAME.score += 1;
+
+    updateHUD();
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+}
+
+// ==========================================
+// 6. CONTROLS & EVENT LISTENERS
+// ==========================================
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Keyboard Controls
+window.addEventListener('keydown', (e) => {
+    switch(e.code) {
+        case 'ArrowLeft': case 'KeyA': GAME.keys.left = true; break;
+        case 'ArrowRight': case 'KeyD': GAME.keys.right = true; break;
+        case 'ArrowUp': case 'KeyW': GAME.keys.up = true; break;
+        case 'ArrowDown': case 'KeyS': GAME.keys.down = true; break;
+        case 'Space': GAME.keys.boost = true; break;
+        case 'Escape': 
+            if(GAME.state === 'PLAYING') GAME.state = 'PAUSED';
+            else if(GAME.state === 'PAUSED') { GAME.state = 'PLAYING'; GAME.lastTime = performance.now(); }
+            break;
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    switch(e.code) {
+        case 'ArrowLeft': case 'KeyA': GAME.keys.left = false; break;
+        case 'ArrowRight': case 'KeyD': GAME.keys.right = false; break;
+        case 'ArrowUp': case 'KeyW': GAME.keys.up = false; break;
+        case 'ArrowDown': case 'KeyS': GAME.keys.down = false; break;
+        case 'Space': GAME.keys.boost = false; break;
+    }
+});
+
+// Touch / Mobile Controls
+const bindTouch = (id, key) => {
+    const el = document.getElementById(id);
+    el.addEventListener('touchstart', (e) => { e.preventDefault(); GAME.keys[key] = true; el.classList.add('active-simulated'); });
+    el.addEventListener('touchend', (e) => { e.preventDefault(); GAME.keys[key] = false; el.classList.remove('active-simulated'); });
+    // Also bind mouse for testing on desktop
+    el.addEventListener('mousedown', (e) => { GAME.keys[key] = true; el.classList.add('active-simulated'); });
+    el.addEventListener('mouseup', (e) => { GAME.keys[key] = false; el.classList.remove('active-simulated'); });
+    el.addEventListener('mouseleave', (e) => { GAME.keys[key] = false; el.classList.remove('active-simulated'); });
+};
+bindTouch('btn-left', 'left');
+bindTouch('btn-right', 'right');
+bindTouch('btn-gas', 'up');
+bindTouch('btn-brake', 'down');
+bindTouch('btn-boost', 'boost');
+
+// UI Buttons
+document.getElementById('btn-start').addEventListener('click', startGame);
+
+document.getElementById('btn-play-again').addEventListener('click', () => {
+    startGame();
+});
+
+document.getElementById('btn-main-menu').addEventListener('click', () => {
+    UI.gameover.classList.add('hidden');
+    UI.menu.classList.remove('hidden');
+    GAME.state = 'MENU';
+});
+
+// Settings Modal
+document.getElementById('btn-settings').addEventListener('click', () => {
+    document.getElementById('gas-url').value = GAME.gasUrl;
+    UI.settings.classList.remove('hidden');
+});
+document.getElementById('btn-close-settings').addEventListener('click', () => {
+    UI.settings.classList.add('hidden');
+});
+document.getElementById('btn-save-settings').addEventListener('click', () => {
+    const url = document.getElementById('gas-url').value.trim();
+    GAME.gasUrl = url;
+    localStorage.setItem('cyberRaceGasUrl', url);
+    UI.settings.classList.add('hidden');
+    alert("Pengaturan URL disimpan di browser lokal.");
+});
+
+// ==========================================
+// 7. GOOGLE SHEETS & EXPORT
+// ==========================================
+function saveToGoogleSheets(grade) {
+    const statusEl = document.getElementById('save-status');
+    
+    if(!GAME.gasUrl) {
+        statusEl.innerHTML = "<span class='text-gray-500'>Nilai tidak disimpan (URL Web App tidak diatur)</span>";
+        return;
+    }
+
+    statusEl.innerHTML = "<span class='text-yellow-400 animate-pulse'>Menyimpan nilai ke Google Sheets...</span>";
+
+    // Build URL with params
+    const params = new URLSearchParams({
+        action: 'save',
+        nama: GAME.playerName,
+        kelas: GAME.playerClass,
+        sirkuit: QUIZ_DATA[GAME.trackIndex].title,
+        skor: GAME.score,
+        benar: GAME.quizStats.correct,
+        total: GAME.quizStats.total,
+        predikat: grade
+    });
+
+    const finalUrl = `${GAME.gasUrl}?${params.toString()}`;
+
+    // Use no-cors to prevent CORS blockage. We won't get a response body, but data is sent.
+    fetch(finalUrl, { method: 'GET', mode: 'no-cors' })
+        .then(() => {
+            statusEl.innerHTML = "<span class='text-green-400 font-bold'>✔ Nilai berhasil dikirim!</span>";
+        })
+        .catch(err => {
+            console.error('Save error:', err);
+            statusEl.innerHTML = "<span class='text-red-400'>✖ Gagal mengirim nilai. Cek koneksi / URL.</span>";
+        });
+}
+
+// Download HTML
+document.getElementById('btn-download').addEventListener('click', () => {
+    try {
+        // Clone the document to strip injected canvas/scripts safely
+        const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+        
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'cyber-racing-edukasi.html';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    } catch (e) {
+        console.error("Gagal mengunduh file", e);
+    }
+});
+
+// Initialize Engine
+window.onload = () => {
+    initThreeJS();
+    // Render first frame as background
+    renderer.render(scene, camera);
+};
+
+</script>
+</body>
+</html>
